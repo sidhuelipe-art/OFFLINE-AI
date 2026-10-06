@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>GMRCRIX Live</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <header>
+        <a class="brand" href="index.html">GMR<span>CRIX</span></a>
+        <nav>
+            <a href="index.html">Live</a>
+            <a href="#matches">Matches</a>
+            <a href="#teams">Teams</a>
+            <a href="#stats">Stats</a>
+        </nav>
+        <button id="adminBtn" onclick="document.getElementById('loginPanel').hidden=false"
+            style="background:none;border:1px solid var(--b);color:var(--m);padding:6px 14px;cursor:pointer">Admin</button>
+    </header>
+    <main>
+        <section id="loginPanel" hidden>
+            <div class="panel" style="max-width:400px;margin:40px auto">
+                <h2>Admin Login</h2>
+                <form id="loginForm">
+                    <input id="pin" type="password" inputmode="numeric" placeholder="Admin PIN" required>
+                    <button>Sign in</button>
+                    <p id="loginError" style="color:var(--r)"></p>
+                </form>
+            </div>
+        </section>
+
+        <section id="adminPanel" hidden>
+            <div class="adminHead">
+                <h1>Tournament Control</h1>
+                <button id="logout">Sign out</button>
+            </div>
+            <div class="cols">
+                <section class="panel">
+                    <h2>Add Team</h2>
+                    <form id="teamForm">
+                        <input id="tn" placeholder="Team name" required>
+                        <input id="ts" placeholder="Short code" required>
+                        <input id="cap" placeholder="Captain">
+                        <button>Add Team</button>
+                    </form>
+                    <div id="teamList"></div>
+                </section>
+                <section class="panel">
+                    <h2>Add Player</h2>
+                    <form id="playerForm">
+                        <input id="pn" placeholder="Player name" required>
+                        <select id="pteam"></select>
+                        <select id="pt"></select>
+                        <button>Add Player</button>
+                    </form>
+                    <div id="playerList"></div>
+                </section>
+            </div>
+            <section class="panel">
+                <h2>Create Match</h2>
+                <form id="matchForm" class="row">
+                    <input id="mn" placeholder="Match name" required>
+                    <select id="ma"></select>
+                    <select id="mb"></select>
+                    <button>Create</button>
+                </form>
+            </section>
+            <section class="panel">
+                <h2>Live Score Editor</h2>
+                <div id="editorPanel">Create a match first.</div>
+            </section>
+        </section>
+
+        <div class="hero"><div>
+            <small>● LIVE MATCH CENTER</small>
+            <h1>Every run.<br><span>Every moment.</span></h1>
+            <p id="tournament">Loading...</p>
+        </div><b id="status">CONNECTING</b></div>
+        <h2>Live Scores</h2>
+        <div id="matches" class="grid"></div>
+        <h2 id="teams">Teams</h2>
+        <div id="teamCards" class="grid"></div>
+        <h2 id="stats">Players</h2>
+        <div id="players" class="grid"></div>
+    </main>
+    <script type="module" src="js/public.js"></script>
+</body>
+</html>
