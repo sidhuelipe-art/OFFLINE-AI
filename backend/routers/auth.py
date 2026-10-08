@@ -4,8 +4,8 @@ from secrets import token_hex
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from database import get_db
-import models
+from backend.database import get_db
+from backend import models
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
