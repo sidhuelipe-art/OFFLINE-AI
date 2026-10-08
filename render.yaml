@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: offline-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /docs
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: offline-ai-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: offline-ai.onrender.com
+      - key: OLLAMA_HOST
+        sync: false
+      - key: OLLAMA_MODEL
+        value: llama3
+      - key: OLLAMA_VISION_MODEL
+        value: llava
+
+databases:
+  - name: offline-ai-db
+    plan: free
+    databaseName: offline_ai
+    user: offline_ai
