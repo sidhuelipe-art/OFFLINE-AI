@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
-import models
+from backend.database import get_db
+from backend import models
 from pydantic import BaseModel
-from routers.dependencies import get_owner_email
+from backend.routers.dependencies import get_owner_email
 
 router = APIRouter(prefix="/notes", tags=["Notes"])
 
