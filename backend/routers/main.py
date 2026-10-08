@@ -1,33 +1,41 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
+from starlette.middleware.sessions import SessionMiddleware
 from database import engine, Base
 from routers import auth, chat, files, generate, memory, notes, reminders, settings, voice
-import models  # noqa: F401 - registers all tables before create_all
+import models
 
-
-# Existing SQLite databases need a safe, additive migration for email ownership.
 Base.metadata.create_all(bind=engine)
 with engine.begin() as connection:
-    inspector = inspect(engine)
+    inspector = inspect(connection)
     for table in ("notes", "files", "reminders", "chat_history"):
-        columns = {column["name"] for column in inspect(connection).get_columns(table)}
+        columns = {column["name"] for column in inspector.get_columns(table)}
         if "owner_email" not in columns:
             connection.execute(text(f"ALTER TABLE {table} ADD COLUMN owner_email VARCHAR"))
             connection.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_owner_email ON {table} (owner_email)"))
-    # The old global memory table is obsolete and must not be exposed.
-    connection.execute(text("DROP TABLE IF EXISTS memory"))
 
-app = FastAPI(title="OFF AI Assistant API")
+app = FastAPI(title="OFF AI Assistant API", version="1.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+secret_key = os.getenv("SESSION_SECRET")
+if not secret_key:
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        raise RuntimeError("SESSION_SECRET must be set in production.")
+    secret_key = "development-only-change-me"
+
+app.add_middleware(SessionMiddleware, secret_key=secret_key, same_site="lax", https_only=os.getenv("ENVIRONMENT", "development").lower() == "production")
+
+allowed_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "*").split(",") if host.strip()]
+if allowed_hosts != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
+if cors_origins:
+    app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 app.include_router(auth.router)
 app.include_router(chat.router)
@@ -39,7 +47,6 @@ app.include_router(reminders.router)
 app.include_router(settings.router)
 app.include_router(voice.router)
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
+if frontend_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
