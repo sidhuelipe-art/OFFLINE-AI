@@ -64,6 +64,6 @@ app.include_router(voice.router)
 def health_check():
     return {"status": "ok"}
 
-frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
+frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
 if frontend_dir.is_dir():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
