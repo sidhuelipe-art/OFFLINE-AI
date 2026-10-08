@@ -1,14 +1,16 @@
 import os
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
-from database import engine, Base
-from routers import auth, chat, files, generate, memory, notes, reminders, settings, voice
-import models
+
+from backend import models
+from backend.database import Base, engine
+from backend.routers import auth, chat, files, generate, memory, notes, reminders, settings, voice
 
 Base.metadata.create_all(bind=engine)
 with engine.begin() as connection:
@@ -27,7 +29,12 @@ if not secret_key:
         raise RuntimeError("SESSION_SECRET must be set in production.")
     secret_key = "development-only-change-me"
 
-app.add_middleware(SessionMiddleware, secret_key=secret_key, same_site="lax", https_only=os.getenv("ENVIRONMENT", "development").lower() == "production")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=secret_key,
+    same_site="lax",
+    https_only=os.getenv("ENVIRONMENT", "development").lower() == "production",
+)
 
 allowed_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "*").split(",") if host.strip()]
 if allowed_hosts != ["*"]:
@@ -35,7 +42,13 @@ if allowed_hosts != ["*"]:
 
 cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
 if cors_origins:
-    app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(auth.router)
 app.include_router(chat.router)
