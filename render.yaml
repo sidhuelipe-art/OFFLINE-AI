@@ -18,7 +18,7 @@ services:
           name: offline-ai-db
           property: connectionString
       - key: ALLOWED_HOSTS
-        value: '*.onrender.com,localhost,127.0.0.1'
+        value: '*'
       - key: OLLAMA_MODEL
         value: llama3
       - key: OLLAMA_VISION_MODEL
