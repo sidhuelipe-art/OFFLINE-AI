@@ -1191,14 +1191,18 @@ function logout() {
   showLogin();
 }
 
-// Restore only the signed-in email for this browser tab after a page refresh.
-document.addEventListener("DOMContentLoaded", function() {
+// Restore the authenticated session from the server after a page refresh.
+document.addEventListener("DOMContentLoaded", async function() {
   updateAuthMode();
-  const savedEmail = (sessionStorage.getItem(SESSION_EMAIL_KEY) || "").trim().toLowerCase();
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(savedEmail)) {
-    currentUserEmail = savedEmail;
+  try {
+    const response = await apiFetch("/auth/me");
+    if (!response.ok) throw new Error("Not authenticated");
+    const data = await response.json();
+    currentUserEmail = data.email || "";
+    sessionStorage.setItem(SESSION_EMAIL_KEY, currentUserEmail);
     showApp();
-  } else {
+  } catch (error) {
+    sessionStorage.removeItem(SESSION_EMAIL_KEY);
     showLogin();
   }
 });
