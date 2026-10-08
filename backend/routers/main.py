@@ -60,6 +60,10 @@ app.include_router(reminders.router)
 app.include_router(settings.router)
 app.include_router(voice.router)
 
-frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
+@app.get("/health", tags=["System"])
+def health_check():
+    return {"status": "ok"}
+
+frontend_dir = Path(__file__).resolve().parents[1] / "frontend"
 if frontend_dir.is_dir():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
