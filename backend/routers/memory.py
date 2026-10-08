@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-import models
-from database import get_db
-from routers.dependencies import get_owner_email
+from backend import models
+from backend.database import get_db
+from backend.routers.dependencies import get_owner_email
 
 router = APIRouter(prefix="/memory", tags=["Chat History"])
 
