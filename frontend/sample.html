@@ -859,19 +859,19 @@ input:focus,textarea:focus{border-color:#8974e8;box-shadow:0 0 0 3px rgba(137,11
       </div>
     </div>
 
-    <!-- 2. VOICE TAB (Integrates router: /voice/transcribe) -->
+    <!-- 2. VOICE TAB (Extracts song lyrics from uploaded audio) -->
     <div id="voiceTab" class="tab-content">
-      <h2>Voice Lyrics</h2>
-      <p style="color: #9ca3af; margin-bottom: 20px;">Upload audio files to show its lyrics.</p>
+      <h2>Song Lyrics</h2>
+      <p style="color: #9ca3af; margin-bottom: 20px;">Upload a song to extract its audible lyrics.</p>
       
       <div class="form-group">
         <input type="file" id="voiceFileInput" accept="audio/*">
-        <button class="btn-primary" onclick="transcribeAudio()">Show Lyrics</button>
+        <button class="btn-primary" id="voiceLyricsButton" onclick="transcribeAudio()">Extract Lyrics</button>
       </div>
 
       <div class="card">
         <h4>Lyrics Output:</h4>
-        <p id="transcriptionResult" style="color: #d1d5db; margin-top: 10px;">No Lyrics generated yet.</p>
+        <p id="transcriptionResult" style="color: #4c5057; margin-top: 10px;">No Lyrics generated yet.</p>
       </div>
     </div>
 
@@ -1089,8 +1089,11 @@ function renderSavedArtifact(container, artifact) {
   label.textContent = artifact.content || "Generated PDF";
   container.appendChild(label);
   const download = document.createElement("a");
-  download.href = `${BASE_URL}${artifact.download_url}`;
-  download.download = artifact.filename || "generated-file";
+  download.href = "#";
+  download.onclick = event => {
+    event.preventDefault();
+    downloadProtectedFile(artifact.download_url, artifact.filename || "generated-file");
+  };
   download.textContent = "⇩ Download";
   download.title = "Download generated file";
   download.style.cssText = "display:inline-block;margin-top:12px;color:var(--accent);font-weight:600;";
@@ -1342,7 +1345,9 @@ async function sendMessage() {
 
   } catch (err) {
     console.error("Ollama chat error:", err);
-    ai.textContent = `⚠️ Error: ${err.message}`;
+    ai.textContent = err instanceof TypeError
+      ? `⚠️ Cannot reach the backend at ${BASE_URL}. Start the backend and check that port 8000 is available.`
+      : `⚠️ Error: ${err.message}`;
     session.messages.push({ role: "assistant", content: ai.textContent });
     saveCurrentChatSession(session);
   } finally {
@@ -1404,10 +1409,17 @@ async function uploadChatFile() {
     if (!response.ok) throw new Error(data.detail || "File upload failed.");
 
     activeChatFile = data;
-    openLink.href = data.download_url ? `${BASE_URL}${data.download_url}` : "#";
+    openLink.href = "#";
+    openLink.onclick = event => {
+      event.preventDefault();
+      if (data.download_url) openProtectedFile(data.download_url);
+    };
     openLink.style.display = data.download_url ? "inline" : "none";
-    downloadLink.href = data.download_url ? `${BASE_URL}${data.download_url}` : "#";
-    downloadLink.download = data.filename || "attachment";
+    downloadLink.href = "#";
+    downloadLink.onclick = event => {
+      event.preventDefault();
+      if (data.download_url) downloadProtectedFile(data.download_url, data.filename || "attachment");
+    };
     downloadLink.style.display = data.download_url ? "inline" : "none";
     if (data.is_image) {
       preview.src = URL.createObjectURL(file);
@@ -1445,15 +1457,12 @@ function removeChatFile() {
 }
 
 /* ========================================================================
-   CHAT MICROPHONE: BROWSER SPEECH-TO-TEXT
-
-   This is intentionally independent from the sidebar Voice tab, which still
-   uses /voice/transcribe for uploaded audio files.
-   ======================================================================== */
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let chatRecognition = null;
+  CHAT MICROPHONE: LOCAL WHISPER TRANSCRIPTION
+  ======================================================================== */
+let chatMediaRecorder = null;
+let chatVoiceStream = null;
+let chatAudioChunks = [];
 let chatVoiceListening = false;
-let microphonePermissionPromise = null;
 
 function setChatVoiceState(listening) {
   const button = document.getElementById("chatVoiceBtn");
@@ -1464,97 +1473,90 @@ function setChatVoiceState(listening) {
   button.title = listening ? "Stop voice input" : "Start voice input";
 }
 
-async function ensureMicrophonePermission() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error("Microphone access is not available in this browser or page context.");
-  }
-
-  // Reuse the same permission request instead of asking on every click.
-  if (!microphonePermissionPromise) {
-    microphonePermissionPromise = (async () => {
-      if (navigator.permissions && navigator.permissions.query) {
-        try {
-          const permission = await navigator.permissions.query({ name: "microphone" });
-          if (permission.state === "denied") {
-            throw new Error("Microphone permission is blocked in browser settings.");
-          }
-          if (permission.state === "granted") return true;
-        } catch (error) {
-          // Some browsers do not support querying the microphone permission.
-          if (error.message.includes("blocked")) throw error;
-        }
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // SpeechRecognition opens the microphone when it starts. Release this
-      // short-lived permission-check stream without requesting permission again.
-      stream.getTracks().forEach(track => track.stop());
-      return true;
-    })().catch(error => {
-      // Allow retry after a real denial or temporary device error.
-      microphonePermissionPromise = null;
-      throw error;
-    });
-  }
-
-  return microphonePermissionPromise;
-}
-
 async function toggleChatVoiceInput() {
-  if (!SpeechRecognition) {
-    alert("Voice input is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    alert("Voice recording is not supported in this browser or page context. Open the app in Chrome or Edge over localhost or HTTPS.");
     return;
   }
 
   if (chatVoiceListening) {
-    chatRecognition.stop();
+    chatMediaRecorder.stop();
     return;
   }
 
   try {
-    await ensureMicrophonePermission();
+    chatVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (error) {
     console.error("Microphone permission error:", error);
-    alert(error.message.includes("blocked")
+    alert(error.name === "NotAllowedError"
       ? "Microphone permission is blocked. Allow it in the browser address-bar settings and try again."
-      : "Please allow microphone access to use voice input.");
+      : "Could not access the microphone. Check that a microphone is connected and available.");
     return;
   }
 
   const input = document.getElementById("message");
-  chatRecognition = new SpeechRecognition();
-  chatRecognition.lang = navigator.language || "en-US";
-  chatRecognition.continuous = false;
-  chatRecognition.interimResults = true;
-
-  chatRecognition.onstart = () => {
-    setChatVoiceState(true);
-    input.placeholder = "Listening... speak now";
+  chatAudioChunks = [];
+  const mimeType = typeof MediaRecorder.isTypeSupported === "function"
+    ? ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
+      .find(type => MediaRecorder.isTypeSupported(type))
+    : "";
+  try {
+    chatMediaRecorder = new MediaRecorder(chatVoiceStream, mimeType ? { mimeType } : undefined);
+  } catch (error) {
+    console.error("Could not start chat voice recording:", error);
+    chatVoiceStream.getTracks().forEach(track => track.stop());
+    chatVoiceStream = null;
+    alert("Could not start voice recording. Try another browser or check your microphone settings.");
+    return;
+  }
+  chatMediaRecorder.ondataavailable = event => {
+    if (event.data.size > 0) chatAudioChunks.push(event.data);
   };
-
-  chatRecognition.onresult = (event) => {
-    let transcript = "";
-    for (let index = event.resultIndex; index < event.results.length; index += 1) {
-      transcript += event.results[index][0].transcript;
-    }
-    // Keep the recognized text in the chat box so the user can review/edit it.
-    input.value = transcript.trim();
-  };
-
-  chatRecognition.onerror = (event) => {
-    console.error("Chat voice input error:", event.error);
-    if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-      alert("Microphone permission was denied. Please allow microphone access and try again.");
-    }
-  };
-
-  chatRecognition.onend = () => {
+  chatMediaRecorder.onerror = event => {
+    console.error("Chat voice recording error:", event.error);
+    chatVoiceStream?.getTracks().forEach(track => track.stop());
+    chatVoiceStream = null;
     setChatVoiceState(false);
     input.placeholder = "Ask anything...";
-    input.focus();
+  };
+  chatMediaRecorder.onstop = async () => {
+    const audioBlob = new Blob(chatAudioChunks, { type: chatMediaRecorder.mimeType || "audio/webm" });
+    chatVoiceStream?.getTracks().forEach(track => track.stop());
+    chatVoiceStream = null;
+    setChatVoiceState(false);
+    document.getElementById("chatVoiceBtn").disabled = true;
+    input.placeholder = "Transcribing voice input...";
+
+    try {
+      if (!audioBlob.size) throw new Error("No audio was recorded. Try speaking for a little longer.");
+      const extension = audioBlob.type.includes("ogg") ? "ogg" : audioBlob.type.includes("mp4") ? "mp4" : "webm";
+      const formData = new FormData();
+      formData.append("file", audioBlob, `chat-voice.${extension}`);
+      const response = await apiFetch(`${BASE_URL}/voice/transcribe`, { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Voice transcription failed.");
+      input.value = data.transcription || "";
+      if (!input.value) alert("No speech was recognized. Try again in a quieter place.");
+    } catch (error) {
+      console.error("Chat voice transcription error:", error);
+      alert(error.message || "Voice transcription failed. Check that the backend is running and try again.");
+    } finally {
+      document.getElementById("chatVoiceBtn").disabled = false;
+      input.placeholder = "Ask anything...";
+      input.focus();
+    }
   };
 
-  chatRecognition.start();
+  try {
+    chatMediaRecorder.start();
+    setChatVoiceState(true);
+    input.placeholder = "Listening... press the mic again when done";
+  } catch (error) {
+    console.error("Could not start chat voice recording:", error);
+    chatVoiceStream.getTracks().forEach(track => track.stop());
+    chatVoiceStream = null;
+    alert("Could not start voice recording. Try again after checking your microphone settings.");
+  }
 }
 
 // Allow the user to press Enter instead of clicking Send.
@@ -1565,11 +1567,12 @@ document.getElementById("message").addEventListener("keydown", function(event) {
   }
 });
 /* ==========================================================================
-   2. VOICE ROUTER INTEGRATION (/voice/transcribe)
+  2. SONG LYRICS EXTRACTION (/voice/lyrics)
    ========================================================================== */
 async function transcribeAudio() {
   const fileInput = document.getElementById("voiceFileInput");
   const output = document.getElementById("transcriptionResult");
+  const button = document.getElementById("voiceLyricsButton");
 
   if (!fileInput.files[0]) {
     alert("Please select an audio file.");
@@ -1578,19 +1581,22 @@ async function transcribeAudio() {
 
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
-
-  output.textContent = "Transcribing audio...";
+  button.disabled = true;
+  output.textContent = "Extracting lyrics from the song...";
 
   try {
-    const res = await apiFetch(`${BASE_URL}/voice/transcribe`, {
+    const res = await apiFetch(`${BASE_URL}/voice/lyrics`, {
       method: "POST",
       body: formData
     });
-    const data = await res.json();
-    output.textContent = data.transcription || "No text transcribed.";
-    recordActivity(`Transcribed: ${fileInput.files[0].name}`, "voiceTab");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Lyrics extraction failed.");
+    output.textContent = data.lyrics || "No lyrics could be recognized. Try a clearer recording with vocals.";
+    recordActivity(`Extracted lyrics: ${fileInput.files[0].name}`, "voiceTab");
   } catch (err) {
-    output.textContent = "⚠️ Error transcribing audio.";
+    output.textContent = `Lyrics extraction failed: ${err.message || "Check that the backend is running and try again."}`;
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -1628,17 +1634,19 @@ async function saveNote() {
 
   try {
     const editing = editingNoteId !== null;
-    const res = await fetch(editing ? `${BASE_URL}/notes/${editingNoteId}` : `${BASE_URL}/notes/`, {
+    const res = await apiFetch(editing ? `${BASE_URL}/notes/${editingNoteId}` : `${BASE_URL}/notes/`, {
       method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, content })
     });
-    if (!res.ok) throw new Error("Unable to save note");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Unable to save note (${res.status})`);
     recordActivity(`${editing ? "Updated" : "Created"} note: ${title.slice(0, 55)}`, "notesTab");
     cancelNoteEdit();
     fetchNotes();
   } catch (err) {
-    alert("Failed to save note.");
+    console.error("Failed to save note:", err);
+    alert(err.message || "Failed to save note.");
   }
 }
 
@@ -1653,12 +1661,14 @@ async function appendToNote() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ append_content: addition })
     });
-    if (!res.ok) throw new Error("Unable to append content");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Unable to append content (${res.status})`);
     recordActivity("Appended content to a note", "notesTab");
     cancelNoteEdit();
     fetchNotes();
   } catch (err) {
-    alert("Failed to append content.");
+    console.error("Failed to append content:", err);
+    alert(err.message || "Failed to append content.");
   }
 }
 
@@ -1726,18 +1736,28 @@ async function fetchFiles() {
     const files = await res.json();
     container.innerHTML = files.map(file => `
       <div class="card">
-        ${file.file_type && file.file_type.startsWith("image/") ? `<img src="${BASE_URL}${file.download_url}" alt="${escapeHtml(file.filename)}" style="width:100%;max-height:180px;object-fit:contain;border-radius:10px;background:var(--bg-input);margin-bottom:12px;">` : ""}
+        ${file.file_type && file.file_type.startsWith("image/") ? `<img data-file-id="${Number(file.file_id)}" alt="${escapeHtml(file.filename)}" style="width:100%;max-height:180px;object-fit:contain;border-radius:10px;background:var(--bg-input);margin-bottom:12px;">` : ""}
         <h4>📄 ${escapeHtml(file.filename)}</h4>
         <p style="color:#9ca3af;">${file.file_type || "Unknown type"}</p>
         <small style="color:#9ca3af;">Uploaded: ${new Date(file.uploaded_at).toLocaleString()}</small>
         <div class="card-actions">
           ${file.available
-            ? `<a class="btn-small" href="${BASE_URL}${file.download_url}" download title="Download ${escapeHtml(file.filename)}" aria-label="Download ${escapeHtml(file.filename)}">⇩ Download</a>`
+            ? `<button type="button" class="btn-small" onclick="downloadProtectedFile('/files/${Number(file.file_id)}/download', decodeURIComponent('${encodeURIComponent(file.filename).replace(/'/g, "%27")}'))" title="Download ${escapeHtml(file.filename)}" aria-label="Download ${escapeHtml(file.filename)}">⇩ Download</button>`
             : `<span style="color:#fca5a5;">File unavailable</span>`}
-          ${file.file_type === "application/pdf" && file.available ? `<a class="btn-small" href="${BASE_URL}${file.download_url}" target="_blank" rel="noopener">Open PDF</a>` : ""}
+          ${file.file_type === "application/pdf" && file.available ? `<button type="button" class="btn-small" onclick="openProtectedFile('/files/${Number(file.file_id)}/download')">Open PDF</button>` : ""}
         </div>
       </div>
     `).join("") || "<p>No uploaded files yet.</p>";
+    container.querySelectorAll("img[data-file-id]").forEach(async image => {
+      try {
+        const blob = await fetchProtectedFile(`/files/${image.dataset.fileId}/download`);
+        const objectUrl = URL.createObjectURL(blob);
+        image.onload = image.onerror = () => URL.revokeObjectURL(objectUrl);
+        image.src = objectUrl;
+      } catch (error) {
+        image.alt = `${image.alt} (preview unavailable)`;
+      }
+    });
   } catch (err) {
     container.innerHTML = `<p>Error loading uploaded files: ${escapeHtml(err.message)}</p>`;
   }
@@ -2125,6 +2145,48 @@ function escapeHtml(value) {
   const div = document.createElement("div");
   div.textContent = value || "";
   return div.innerHTML;
+}
+
+async function fetchProtectedFile(downloadUrl) {
+  const response = await apiFetch(`${BASE_URL}${downloadUrl}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Unable to retrieve file (${response.status}).`);
+  }
+  return response.blob();
+}
+
+async function downloadProtectedFile(downloadUrl, filename) {
+  try {
+    const blob = await fetchProtectedFile(downloadUrl);
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename || "download";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  } catch (error) {
+    alert(`Download failed: ${error.message}`);
+  }
+}
+
+async function openProtectedFile(downloadUrl) {
+  const previewWindow = window.open("about:blank", "_blank");
+  try {
+    const blob = await fetchProtectedFile(downloadUrl);
+    const objectUrl = URL.createObjectURL(blob);
+    if (previewWindow) {
+      previewWindow.location = objectUrl;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } else {
+      window.location.href = objectUrl;
+    }
+  } catch (error) {
+    if (previewWindow) previewWindow.close();
+    alert(`Unable to open file: ${error.message}`);
+  }
 }
 
 

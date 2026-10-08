@@ -66,6 +66,16 @@ def context_path(file_path: str) -> Path:
     return Path(f"{file_path}.context.txt")
 
 
+def resolve_uploaded_file(file_path: str) -> Path | None:
+    upload_root = UPLOAD_DIR.resolve()
+    stored_path = Path(file_path)
+    for candidate in (stored_path, UPLOAD_DIR / stored_path.name):
+        resolved_path = candidate.resolve()
+        if upload_root in resolved_path.parents and resolved_path.is_file():
+            return resolved_path
+    return None
+
+
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...), owner_email: str = Depends(get_owner_email), db: Session = Depends(get_db)):
     original_name = _safe_filename(file.filename)
@@ -87,7 +97,17 @@ async def upload_file(file: UploadFile = File(...), owner_email: str = Depends(g
 @router.get("/")
 def list_files(owner_email: str = Depends(get_owner_email), db: Session = Depends(get_db)):
     records = db.query(models.FileMetadata).filter(models.FileMetadata.owner_email == owner_email).order_by(models.FileMetadata.uploaded_at.desc()).all()
-    return [{"file_id": record.id, "filename": record.filename, "file_type": record.file_type, "uploaded_at": record.uploaded_at, "download_url": f"/files/{record.id}/download", "available": Path(record.filepath).exists()} for record in records]
+    files = []
+    paths_updated = False
+    for record in records:
+        path = resolve_uploaded_file(record.filepath)
+        if path and record.filepath != str(path):
+            record.filepath = str(path)
+            paths_updated = True
+        files.append({"file_id": record.id, "filename": record.filename, "file_type": record.file_type, "uploaded_at": record.uploaded_at, "download_url": f"/files/{record.id}/download", "available": path is not None})
+    if paths_updated:
+        db.commit()
+    return files
 
 
 @router.get("/{file_id}/download")
@@ -95,7 +115,10 @@ def download_file(file_id: int, owner_email: str = Depends(get_owner_email), db:
     record = db.query(models.FileMetadata).filter(models.FileMetadata.id == file_id, models.FileMetadata.owner_email == owner_email).first()
     if not record:
         raise HTTPException(status_code=404, detail="File not found.")
-    path = Path(record.filepath).resolve()
-    if not path.is_file() or UPLOAD_DIR.resolve() not in path.parents:
+    path = resolve_uploaded_file(record.filepath)
+    if not path:
         raise HTTPException(status_code=404, detail="Uploaded file is no longer available.")
+    if record.filepath != str(path):
+        record.filepath = str(path)
+        db.commit()
     return FileResponse(path=str(path), filename=record.filename, media_type=record.file_type or "application/octet-stream")

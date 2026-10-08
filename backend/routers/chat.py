@@ -1,16 +1,18 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from pathlib import Path
 
 from database import get_db
 import models
 from routers.dependencies import get_owner_email
-from routers.files import context_path
+from routers.files import context_path, resolve_uploaded_file
 from services.ai_service import ai_service
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+logger = logging.getLogger(__name__)
 MAX_FILE_CONTEXT_CHARS = 24_000
 RESPONSE_STYLE_INSTRUCTION = (
     "Answer in the same language as the user. Keep the response concise and easy to understand: "
@@ -51,7 +53,10 @@ def _file_context(db: Session, owner_email: str, file_id: int | None) -> str:
     if file_id is None:
         return ""
     db_file = _owned_file(db, owner_email, file_id)
-    path = context_path(db_file.filepath)
+    uploaded_path = resolve_uploaded_file(db_file.filepath)
+    if not uploaded_path:
+        return f"\n\nThe user attached '{db_file.filename}', but the file is no longer available. Say that clearly if relevant."
+    path = context_path(str(uploaded_path))
     if not path.exists():
         return f"\n\nThe user attached '{db_file.filename}', but the file is no longer available. Say that clearly if relevant."
     text = path.read_text(encoding="utf-8", errors="replace").strip()
@@ -68,8 +73,8 @@ def _messages(request: ChatRequest, owner_email: str, db: Session) -> list[dict]
     user_message = {"role": "user", "content": request.message}
     if request.file_id is not None:
         db_file = _owned_file(db, owner_email, request.file_id)
-        image_path = Path(db_file.filepath)
-        if image_path.is_file() and (db_file.file_type or "").startswith("image/"):
+        image_path = resolve_uploaded_file(db_file.filepath)
+        if image_path and (db_file.file_type or "").startswith("image/"):
             user_message["images"] = [str(image_path)]
     return [
         {"role": "system", "content": request.system_prompt + _file_context(db, owner_email, request.file_id) + "\n\n" + RESPONSE_STYLE_INSTRUCTION},
@@ -97,6 +102,11 @@ def chat_stream_endpoint(request: ChatRequest, owner_email: str = Depends(get_ow
             for chunk in ai_service.stream_response(messages):
                 chunks.append(chunk)
                 yield chunk
+        except Exception:
+            logger.exception("Chat response streaming failed")
+            error_message = "\n\nChat service error: Ollama is unavailable or the configured model is not installed."
+            chunks.append(error_message)
+            yield error_message
         finally:
             reply = "".join(chunks).strip()
             if reply:
