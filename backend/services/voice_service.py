@@ -1,11 +1,12 @@
-import pyttsx3
-from faster_whisper import WhisperModel
+"""Voice services with lazy loading for Render-friendly startup."""
 
 class VoiceService:
     def __init__(self):
         self.stt_model = None
 
     def _model(self):
+        from faster_whisper import WhisperModel
+
         if self.stt_model is None:
             self.stt_model = WhisperModel("base", device="cpu", compute_type="int8")
         return self.stt_model
@@ -22,9 +23,12 @@ class VoiceService:
         return " ".join(segment.text for segment in segments).strip()
 
     def text_to_speech(self, text: str, output_path: str = "output.mp3"):
+        import pyttsx3
+
         engine = pyttsx3.init()
         engine.save_to_file(text, output_path)
         engine.runAndWait()
         return output_path
+
 
 voice_service = VoiceService()
