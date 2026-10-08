@@ -10,9 +10,9 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from database import get_db
-import models
-from routers.dependencies import get_owner_email
+from backend.database import get_db
+from backend import models
+from backend.routers.dependencies import get_owner_email
 
 router = APIRouter(prefix="/files", tags=["Files"])
 UPLOAD_DIR = Path(__file__).resolve().parents[1] / "uploads"
