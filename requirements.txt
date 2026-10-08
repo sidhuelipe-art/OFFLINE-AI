@@ -1,9 +1,10 @@
-fastapi>=0.100.0
-uvicorn>=0.22.0
-pydantic>=2.0
-sqlalchemy>=2.0
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.0,<3.0
+sqlalchemy>=2.0,<3.0
+psycopg[binary]>=3.2,<4.0
 ollama>=0.1.7
-faster-whisper>=0.10.0
+faster-whisper>=1.0,<2.0
 pyttsx3>=2.90
 python-multipart>=0.0.6
 pypdf>=4.0.0
