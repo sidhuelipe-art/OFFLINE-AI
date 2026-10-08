@@ -2,7 +2,7 @@
 
 A powerful **offline-first AI assistant** built with **Python, FastAPI, Ollama, and a web-based frontend**.
 
-The project is designed to provide AI chat, document/file handling, memory, notes, reminders, voice interaction, and AI generation features through a local backend.
+The project provides AI chat, document/file handling, memory, notes, reminders, voice interaction, and document generation through a FastAPI backend. Local Ollama remains the recommended AI runtime.
 
 > **Privacy-focused AI assistant for running AI capabilities locally on your own computer.**
 
@@ -349,7 +349,7 @@ However, any optional cloud-based features must be treated separately.
 
 # 🗃️ Local Database
 
-The application uses SQLite for local data storage.
+Local development can use SQLite. Production deployments should use PostgreSQL through `DATABASE_URL`; Render Postgres exposes a connection string that can be referenced by the web service. citeturn0search0turn0search1
 
 Typical data can include:
 
