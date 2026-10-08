@@ -349,7 +349,7 @@ However, any optional cloud-based features must be treated separately.
 
 # 🗃️ Local Database
 
-Local development can use SQLite. Production deployments should use PostgreSQL through `DATABASE_URL`; Render Postgres exposes a connection string that can be referenced by the web service. citeturn0search0turn0search1
+Local development can use SQLite. Production deployments should use PostgreSQL through `DATABASE_URL`; Render Postgres exposes a connection string that can be referenced by the web service.
 
 Typical data can include:
 
