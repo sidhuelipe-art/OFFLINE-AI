@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from services.voice_service import voice_service
-from routers.dependencies import get_owner_email
+from backend.services.voice_service import voice_service
+from backend.routers.dependencies import get_owner_email
 import os
 import tempfile
 from pathlib import Path
