@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from datetime import datetime
-from database import Base
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+
+from .database import Base
 
 
 class User(Base):
