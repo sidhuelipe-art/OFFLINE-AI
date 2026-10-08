@@ -9,6 +9,8 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: PYTHON_VERSION
+        value: 3.13.5
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_URL
@@ -17,8 +19,6 @@ services:
           property: connectionString
       - key: ALLOWED_HOSTS
         value: offline-ai.onrender.com
-      - key: OLLAMA_HOST
-        sync: false
       - key: OLLAMA_MODEL
         value: llama3
       - key: OLLAMA_VISION_MODEL
