@@ -5,11 +5,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database import get_db
-import models
-from routers.dependencies import get_owner_email
-from routers.files import context_path, resolve_uploaded_file
-from services.ai_service import ai_service
+from backend.database import get_db
+from backend import models
+from backend.routers.dependencies import get_owner_email
+from backend.routers.files import context_path, resolve_uploaded_file
+from backend.services.ai_service import ai_service
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 logger = logging.getLogger(__name__)
