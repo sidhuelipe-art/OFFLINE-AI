@@ -2,9 +2,9 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import get_db
-import models
-from routers.dependencies import get_owner_email
+from backend.database import get_db
+from backend import models
+from backend.routers.dependencies import get_owner_email
 
 router = APIRouter(prefix="/reminders", tags=["Reminders"])
 
