@@ -256,6 +256,38 @@ body::before{
   box-shadow:var(--glow-card);
 }
 
+.chat-question-text{
+  display:block;
+  width:100%;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  line-height:inherit;
+  text-align:left;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  cursor:pointer;
+}
+.chat-message-actions{display:flex;justify-content:flex-end;gap:4px;margin-top:8px;}
+.chat-action-button{
+  display:grid;
+  min-width:32px;
+  min-height:30px;
+  place-items:center;
+  padding:3px 7px;
+  border:1px solid transparent;
+  border-radius:6px;
+  background:transparent;
+  color:var(--text-dim);
+  cursor:pointer;
+  font-size:16px;
+}
+.chat-action-button:hover{border-color:var(--border);background:rgba(112,87,217,.08);color:var(--text-main);}
+.thinking-message{animation:thinkingPulse 1.2s ease-in-out infinite;}
+@keyframes thinkingPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+
 /* Input Area */
 .footer{
   height:90px;
@@ -383,6 +415,19 @@ input:focus, textarea:focus {
   margin-top: 20px;
 }
 
+.notes-list{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  width:100%;
+}
+.notes-list>.card{
+  width:100%;
+  margin:0;
+  min-width:0;
+}
+.notes-list .card-actions{margin-top:15px;}
+
 .card {
   background: var(--bg-elevated);
   padding: 20px;
@@ -455,6 +500,30 @@ input:focus, textarea:focus {
   color:var(--green);
   min-height:20px;
 }
+
+.reminder-blocking-alert{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(23,29,43,.72);
+  backdrop-filter:blur(4px);
+}
+.reminder-blocking-alert[hidden]{display:none;}
+.reminder-alert-dialog{
+  width:min(100%,440px);
+  padding:28px;
+  border:1px solid #e1e4eb;
+  border-top:5px solid #c63f4f;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 18px 60px rgba(0,0,0,.28);
+  text-align:center;
+}
+.reminder-alert-dialog h2{margin-bottom:10px;color:#a52d3c;}
+.reminder-alert-dialog p{margin-bottom:22px;color:#4b5565;overflow-wrap:anywhere;}
 
 .form-group {
   display: flex;
@@ -593,6 +662,12 @@ input:focus,textarea:focus{border-color:#8974e8;box-shadow:0 0 0 3px rgba(137,11
 .login-form h2{font-size:21px;color:#252b3b;background:none;-webkit-text-fill-color:initial;}
 .login-form p#authSubtitle{color:#7a8290;font-size:13px;}
 .login-form input{width:100%;height:46px;border:1px solid #dfe2e9;border-radius:9px;padding:12px 14px;font-size:14px;}
+.password-field{position:relative;width:100%;}
+.login-form .password-field input{padding-right:48px;}
+.password-toggle{position:absolute;top:50%;right:8px;display:grid;width:34px;height:34px;place-items:center;transform:translateY(-50%);border:0;border-radius:7px;background:transparent;color:#667085;cursor:pointer;}
+.password-toggle:hover{background:#f1effb;color:#5d49bd;}
+.password-toggle:focus-visible{outline:2px solid var(--accent2);outline-offset:1px;}
+.password-toggle svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .login-form .btn-primary{height:46px;}
 .login-form #toggleAuthButton{background:none;border:0;color:#7057d9;cursor:pointer;font-size:13px;padding:4px;}
 .login-form #authMessage{min-height:16px;margin:0;color:#b42318;font-size:12px;}
@@ -742,6 +817,14 @@ input:focus,textarea:focus{border-color:#8974e8;box-shadow:0 0 0 3px rgba(137,11
 
 <body>
 
+<div id="reminderBlockingAlert" class="reminder-blocking-alert" hidden role="alertdialog" aria-modal="true" aria-labelledby="reminderAlertTitle" aria-describedby="reminderAlertMessage">
+  <div class="reminder-alert-dialog">
+    <h2 id="reminderAlertTitle">Reminder</h2>
+    <p id="reminderAlertMessage"></p>
+    <button type="button" class="btn-primary" id="stopReminderAlertButton" onclick="stopReminderAlert()">Turn off alert</button>
+  </div>
+</div>
+
 <!-- Login Form -->
 <div class="login-container" id="loginContainer">
   <div class="login-layout">
@@ -760,7 +843,12 @@ input:focus,textarea:focus{border-color:#8974e8;box-shadow:0 0 0 3px rgba(137,11
         <h2 id="authTitle">Login</h2>
         <p id="authSubtitle">Welcome back. Login to continue.</p>
         <input type="email" id="email" placeholder="Email address" autocomplete="email" required>
-        <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+        <div class="password-field">
+          <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle" id="passwordToggle" onclick="togglePasswordVisibility()" aria-label="Show password" aria-pressed="false" title="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle><path id="passwordVisibilitySlash" d="m4 4 16 16"></path></svg>
+          </button>
+        </div>
         <input type="password" id="confirmPassword" placeholder="Confirm password" autocomplete="new-password" style="display:none;">
         <button type="submit" class="btn-primary" id="authSubmitButton">Login</button>
         <button type="button" id="toggleAuthButton" onclick="toggleAuthMode()">New user? Create an account</button>
@@ -887,7 +975,7 @@ input:focus,textarea:focus{border-color:#8974e8;box-shadow:0 0 0 3px rgba(137,11
         <button class="btn-small" id="noteCancelButton" onclick="cancelNoteEdit()" style="display:none;">Cancel Edit</button>
       </div>
       <h3>Your Notes</h3>
-      <div id="notesContainer" class="card-grid"></div>
+      <div id="notesContainer" class="card-grid notes-list"></div>
     </div>
 
     <!-- 4. FILES TAB (Integrates router: /files/upload) -->
@@ -978,6 +1066,7 @@ const MAX_RECENT_CHATS = 12;
 let authMode = "login";
 let currentUserEmail = "";
 let currentChatId = null;
+let pendingChatContext = null;
 
 function showApp() {
   document.getElementById("loginContainer").style.display = "none";
@@ -1064,6 +1153,82 @@ function recordActivity() {
   // Kept as a compatibility no-op for non-chat actions. Recents contain chats only.
 }
 
+function fillChatInput(text, selectText = false) {
+  const input = document.getElementById("message");
+  input.value = text;
+  input.focus();
+  if (selectText) input.select();
+  else input.setSelectionRange(text.length, text.length);
+}
+
+async function copyChatText(text, button) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const temporaryInput = document.createElement("textarea");
+      temporaryInput.value = text;
+      temporaryInput.style.position = "fixed";
+      temporaryInput.style.opacity = "0";
+      document.body.appendChild(temporaryInput);
+      temporaryInput.select();
+      const copied = document.execCommand("copy");
+      temporaryInput.remove();
+      if (!copied) throw new Error("Copy failed");
+    }
+    button.textContent = "✓";
+    button.title = "Copied";
+    window.setTimeout(() => {
+      button.textContent = "⧉";
+      button.title = button.getAttribute("aria-label");
+    }, 1200);
+  } catch (error) {
+    button.title = "Copy failed";
+  }
+}
+
+function createChatActionButton(icon, label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "chat-action-button";
+  button.textContent = icon;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    onClick(button);
+  });
+  return button;
+}
+
+function renderQuestionChatMessage(bubble, text) {
+  const question = document.createElement("button");
+  question.type = "button";
+  question.className = "chat-question-text";
+  question.textContent = text;
+  question.title = "Put this question in the message box";
+  question.addEventListener("click", () => fillChatInput(text));
+  bubble.appendChild(question);
+
+  const actions = document.createElement("div");
+  actions.className = "chat-message-actions";
+  actions.appendChild(createChatActionButton("⧉", "Copy question", button => copyChatText(text, button)));
+  actions.appendChild(createChatActionButton("✎", "Edit question", () => fillChatInput(text, true)));
+  bubble.appendChild(actions);
+}
+
+function addAnswerCopyAction(bubble, text) {
+  const actions = document.createElement("div");
+  actions.className = "chat-message-actions";
+  actions.appendChild(createChatActionButton("⧉", "Copy answer", button => copyChatText(text, button)));
+  bubble.appendChild(actions);
+}
+
+function renderAssistantChatMessage(bubble, text) {
+  bubble.textContent = text;
+  addAnswerCopyAction(bubble, text);
+}
+
 function renderChatSession(session) {
   const chat = document.getElementById("chat");
   chat.innerHTML = "";
@@ -1076,8 +1241,10 @@ function renderChatSession(session) {
     bubble.className = `message ${message.role === "user" ? "user" : "ai"}`;
     if (message.kind === "image" || message.kind === "pdf") {
       renderSavedArtifact(bubble, message);
+    } else if (message.role === "user") {
+      renderQuestionChatMessage(bubble, message.content);
     } else {
-      bubble.textContent = message.content;
+      renderAssistantChatMessage(bubble, message.content);
     }
     chat.appendChild(bubble);
   });
@@ -1104,6 +1271,7 @@ function openRecentChat(encodedId) {
   const id = decodeURIComponent(encodedId);
   const session = getUserChatSessions().find(item => item.id === id);
   if (!session) return;
+  pendingChatContext = null;
   currentChatId = id;
   renderChatSession(session);
   removeChatFile();
@@ -1113,6 +1281,7 @@ function openRecentChat(encodedId) {
 }
 
 function startNewChat() {
+  pendingChatContext = null;
   currentChatId = null;
   renderChatSession(null);
   document.getElementById("message").value = "";
@@ -1140,6 +1309,34 @@ function updateAuthMode() {
     ? "Already have an account? Login"
     : "New user? Create an account";
   setAuthMessage();
+}
+
+function togglePasswordVisibility() {
+  const password = document.getElementById("password");
+  const toggle = document.getElementById("passwordToggle");
+  const isVisible = password.type === "text";
+  password.type = isVisible ? "password" : "text";
+  toggle.setAttribute("aria-pressed", String(!isVisible));
+  toggle.setAttribute("aria-label", isVisible ? "Show password" : "Hide password");
+  toggle.title = isVisible ? "Show password" : "Hide password";
+  document.getElementById("passwordVisibilitySlash").style.display = isVisible ? "" : "none";
+  password.focus();
+}
+
+async function offerCredentialSave(email, password) {
+  const shouldSave = window.confirm("Login successful. Save your username and password in this browser's password manager?");
+  if (!shouldSave) return;
+  if (!window.isSecureContext || typeof window.PasswordCredential !== "function" || !navigator.credentials?.store) {
+    window.alert("This browser cannot save credentials from this page. Use your browser's password manager if it offers to save them.");
+    return;
+  }
+  try {
+    const credential = new window.PasswordCredential({ id: email, password, name: formatUserName(email) });
+    await navigator.credentials.store(credential);
+  } catch (error) {
+    console.warn("Browser could not save the login credential:", error);
+    window.alert("The browser could not save these credentials. Check your password manager settings.");
+  }
 }
 
 function toggleAuthMode() {
@@ -1170,6 +1367,9 @@ async function login(event) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || "Authentication failed.");
+    await offerCredentialSave(email, password);
+    document.getElementById("password").value = "";
+    document.getElementById("confirmPassword").value = "";
     currentUserEmail = data.email || email;
     sessionStorage.setItem(SESSION_EMAIL_KEY, currentUserEmail);
     chatSessions = [];
@@ -1228,11 +1428,11 @@ function isImageGenerationRequest(text) {
   return /(?:generate|create|make|draw|design|render|తయారు|చేయి|సృష్టించ).*(?:image|picture|photo|illustration|చిత్రం|ఇమేజ్|ఫోటో|బొమ్మ)|(?:image|picture|photo|చిత్రం|ఇమేజ్|ఫోటో|బొమ్మ).*(?:generate|create|make|draw|design|render|తయారు|చేయి|సృష్టించ)/i.test(text);
 }
 
-async function generatePdfArtifact(text, session, chat) {
-  const ai = document.createElement("div");
-  ai.className = "message ai";
+async function generatePdfArtifact(text, session, ai) {
   ai.textContent = "Generating PDF...";
-  chat.appendChild(ai);
+  ai.classList.remove("thinking-message");
+  ai.removeAttribute("role");
+  ai.removeAttribute("aria-live");
   try {
     const response = await apiFetch(`${BASE_URL}/generate/pdf`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: text }) });
     const data = await response.json().catch(() => ({}));
@@ -1245,6 +1445,7 @@ async function generatePdfArtifact(text, session, chat) {
     ai.textContent = `⚠️ ${error.message}`;
     session.messages.push({ role: "assistant", content: ai.textContent });
     saveCurrentChatSession(session);
+    addAnswerCopyAction(ai, ai.textContent);
   }
 }
 
@@ -1260,12 +1461,19 @@ async function sendMessage() {
   // Render the user's message
   const user = document.createElement("div");
   user.className = "message user";
-  user.textContent = text;
+  renderQuestionChatMessage(user, text);
   chat.appendChild(user);
 
   input.value = "";
   let session = getCurrentChatSession();
-  if (!session) session = createChatSession();
+  if (!session) {
+    session = createChatSession();
+    if (pendingChatContext?.length) {
+      session.messages.push(...pendingChatContext);
+      session.title = String(pendingChatContext[0].content || text).slice(0, 70);
+      pendingChatContext = null;
+    }
+  }
   if (!session.messages.length) session.title = text.slice(0, 70);
   session.messages.push({ role: "user", content: text });
   saveCurrentChatSession(session);
@@ -1274,6 +1482,9 @@ async function sendMessage() {
   // Create an AI response placeholder
   const ai = document.createElement("div");
   ai.className = "message ai";
+  ai.classList.add("thinking-message");
+  ai.setAttribute("role", "status");
+  ai.setAttribute("aria-live", "polite");
   ai.textContent = "Thinking...";
   chat.appendChild(ai);
   chat.scrollTop = chat.scrollHeight;
@@ -1284,8 +1495,12 @@ async function sendMessage() {
   if (isImageGenerationRequest(text)) {
     const message = "Images are not generated because this is text-based assistance.";
     ai.textContent = message;
+    ai.classList.remove("thinking-message");
+    ai.removeAttribute("role");
+    ai.removeAttribute("aria-live");
     session.messages.push({ role: "assistant", content: message });
     saveCurrentChatSession(session);
+    addAnswerCopyAction(ai, message);
     input.disabled = false;
     sendBtn.disabled = false;
     input.focus();
@@ -1293,7 +1508,7 @@ async function sendMessage() {
   }
 
   if (isPdfGenerationRequest(text)) {
-    await generatePdfArtifact(text, session, chat);
+    await generatePdfArtifact(text, session, ai);
     input.disabled = false;
     sendBtn.disabled = false;
     input.focus();
@@ -1309,7 +1524,12 @@ async function sendMessage() {
       body: JSON.stringify({
         message: text,
         system_prompt: "You are a helpful offline AI assistant. Answer in the user's language using simple words. Keep the default answer short: give the direct answer in 2–4 short sentences or a few brief bullets, without a long introduction or repeated conclusion. Use consistent formatting: do not add leading spaces to paragraphs, use one bullet style, and indent nested bullets by exactly two spaces. Keep peer bullets at the same indentation level. Include more detail only when the user asks for it or it is necessary for correctness.",
-        file_id: activeChatFile ? activeChatFile.file_id : null
+        file_id: activeChatFile ? activeChatFile.file_id : null,
+        history: session.messages
+          .slice(0, -1)
+          .filter(message => !message.kind && ["user", "assistant"].includes(message.role))
+          .slice(-16)
+          .map(message => ({ role: message.role, content: String(message.content || "").slice(0, 8000) }))
       })
     });
 
@@ -1333,6 +1553,11 @@ async function sendMessage() {
       if (done) break;
 
       responseText += decoder.decode(value, { stream: true });
+      if (responseText) {
+        ai.classList.remove("thinking-message");
+        ai.removeAttribute("role");
+        ai.removeAttribute("aria-live");
+      }
       ai.textContent = responseText;
       chat.scrollTop = chat.scrollHeight;
     }
@@ -1342,14 +1567,19 @@ async function sendMessage() {
 
     session.messages.push({ role: "assistant", content: ai.textContent });
     saveCurrentChatSession(session);
+    addAnswerCopyAction(ai, ai.textContent);
 
   } catch (err) {
     console.error("Ollama chat error:", err);
     ai.textContent = err instanceof TypeError
       ? `⚠️ Cannot reach the backend at ${BASE_URL}. Start the backend and check that port 8000 is available.`
       : `⚠️ Error: ${err.message}`;
+    ai.classList.remove("thinking-message");
+    ai.removeAttribute("role");
+    ai.removeAttribute("aria-live");
     session.messages.push({ role: "assistant", content: ai.textContent });
     saveCurrentChatSession(session);
+    addAnswerCopyAction(ai, ai.textContent);
   } finally {
     input.disabled = false;
     sendBtn.disabled = false;
@@ -1862,6 +2092,10 @@ function formatReminderDateTime(value) {
 let triggeredReminderKeys = {};
 let reminderAudioContext = null;
 let reminderSchedule = new Map();
+let reminderSoundInterval = null;
+let reminderOscillators = [];
+let activeReminderNotification = null;
+let reminderAlertActive = false;
 
 function unlockReminderSound() {
   try {
@@ -1883,6 +2117,12 @@ function unlockReminderSound() {
 
 document.addEventListener("click", unlockReminderSound, { capture: true });
 document.addEventListener("keydown", unlockReminderSound, { capture: true });
+document.addEventListener("keydown", event => {
+  if (!reminderAlertActive) return;
+  if (event.target === document.getElementById("stopReminderAlertButton") && ["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
 
 async function enableReminderAlerts() {
   const soundReady = await unlockReminderSound();
@@ -1923,9 +2163,18 @@ function playReminderAlert(title, isTest = false) {
   if (status) status.textContent = isTest
     ? "Sound test played. Keep this page open for scheduled reminder alerts."
     : `Reminder alert: ${title}`;
-  if ("Notification" in window && Notification.permission === "granted") {
-    try { new Notification("Offline AI reminder", { body: title }); }
-    catch (error) { console.warn("Desktop reminder notification failed:", error); }
+  if (!isTest) {
+    reminderAlertActive = true;
+    const alert = document.getElementById("reminderBlockingAlert");
+    document.getElementById("reminderAlertMessage").textContent = title;
+    alert.hidden = false;
+    document.getElementById("stopReminderAlertButton").focus();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        if (activeReminderNotification) activeReminderNotification.close();
+        activeReminderNotification = new Notification("Offline AI reminder", { body: title });
+      } catch (error) { console.warn("Desktop reminder notification failed:", error); }
+    }
   }
   if (!reminderAudioContext) {
     unlockReminderSound();
@@ -1948,15 +2197,41 @@ function playReminderAlert(title, isTest = false) {
       gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.28);
       oscillator.connect(gain);
       gain.connect(context.destination);
+      reminderOscillators.push(oscillator);
+      oscillator.addEventListener("ended", () => {
+        reminderOscillators = reminderOscillators.filter(activeOscillator => activeOscillator !== oscillator);
+      }, { once: true });
       oscillator.start(time);
       oscillator.stop(time + 0.3);
     }
   };
+  if (!isTest && reminderSoundInterval === null) {
+    reminderSoundInterval = window.setInterval(playTone, 5000);
+  }
   if (reminderAudioContext.state === "suspended") {
     reminderAudioContext.resume().then(playTone).catch(error => console.warn("Reminder audio resume failed:", error));
   } else {
     playTone();
   }
+}
+
+function stopReminderAlert() {
+  reminderAlertActive = false;
+  if (reminderSoundInterval !== null) {
+    window.clearInterval(reminderSoundInterval);
+    reminderSoundInterval = null;
+  }
+  reminderOscillators.forEach(oscillator => {
+    try { oscillator.stop(); } catch {}
+  });
+  reminderOscillators = [];
+  if (activeReminderNotification) {
+    activeReminderNotification.close();
+    activeReminderNotification = null;
+  }
+  document.getElementById("reminderBlockingAlert").hidden = true;
+  const status = document.getElementById("reminderAlertStatus");
+  if (status) status.textContent = "Reminder alert turned off.";
 }
 
 function scheduleReminderAlerts(reminders) {
@@ -2085,12 +2360,11 @@ function openHistoryConversation(questionId) {
   const pair = (window.chatHistoryPairs || []).find(item => item.question && item.question.id === questionId);
   if (!pair) return;
   currentChatId = null;
-  renderChatSession({
-    messages: [
-      { role: "user", content: pair.question.content },
-      ...(pair.answer ? [{ role: "assistant", content: pair.answer.content }] : [])
-    ]
-  });
+  pendingChatContext = [
+    { role: "user", content: pair.question.content },
+    ...(pair.answer ? [{ role: "assistant", content: pair.answer.content }] : [])
+  ];
+  renderChatSession({ messages: pendingChatContext });
   const chatButton = [...document.querySelectorAll('.menu button')].find(btn => btn.getAttribute('onclick')?.includes("chatTab"));
   switchTab("chatTab", chatButton);
   document.getElementById("message").focus();

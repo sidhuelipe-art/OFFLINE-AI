@@ -1,8 +1,9 @@
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 MAX_FILE_CONTEXT_CHARS = 24_000
 RESPONSE_STYLE_INSTRUCTION = (
     "Answer in the same language as the user. Keep the response concise and easy to understand: "
+    "Use earlier conversation turns to understand follow-up questions and references. If the user clearly changes topics, answer the new topic without forcing a connection to earlier turns. "
     "start with the direct answer, usually use 2–4 short sentences or a few brief bullets, and "
     "include only the details needed to answer correctly. Avoid long introductions, repetition, "
     "and unnecessary conclusions. Format every answer consistently: do not indent ordinary "
@@ -25,10 +27,16 @@ RESPONSE_STYLE_INSTRUCTION = (
 )
 
 
+class ChatContextMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class ChatRequest(BaseModel):
     message: str
     system_prompt: str = "You are a helpful offline AI assistant. Keep answers brief and clear."
     file_id: int | None = None
+    history: list[ChatContextMessage] = Field(default_factory=list)
 
 
 def _save_message(db: Session, owner_email: str, role: str, content: str) -> models.ChatMessage:
@@ -76,10 +84,13 @@ def _messages(request: ChatRequest, owner_email: str, db: Session) -> list[dict]
         image_path = resolve_uploaded_file(db_file.filepath)
         if image_path and (db_file.file_type or "").startswith("image/"):
             user_message["images"] = [str(image_path)]
-    return [
-        {"role": "system", "content": request.system_prompt + _file_context(db, owner_email, request.file_id) + "\n\n" + RESPONSE_STYLE_INSTRUCTION},
-        user_message,
+    system_message = {"role": "system", "content": request.system_prompt + _file_context(db, owner_email, request.file_id) + "\n\n" + RESPONSE_STYLE_INSTRUCTION}
+    history = [
+        {"role": item.role, "content": item.content[:8000]}
+        for item in request.history[-16:]
+        if item.content.strip()
     ]
+    return [system_message, *history, user_message]
 
 
 @router.post("")
