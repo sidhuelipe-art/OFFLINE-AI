@@ -1,4 +1,6 @@
-
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
@@ -21,14 +23,17 @@ with engine.begin() as connection:
 
 app = FastAPI(title="OFF AI Assistant API")
 
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 
+app.mount(
+    "/assets",
+    StaticFiles(directory=str(FRONTEND_DIR)),
+    name="assets"
+)
 # Home and health-check routes
 @app.get("/")
 def home():
-    return {
-        "status": "ok",
-        "message": "OFFLINE-AI backend is running"
-    }
+    return FileResponse(FRONTEND_DIR / "sample.html")
 
 
 @app.get("/health")
