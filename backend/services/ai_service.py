@@ -15,7 +15,7 @@ def create_ollama_client():
 
 
 class AIService:
-    def __init__(self, model_name: str = "llama3"):
+    def __init__(self, model_name: str = "llama3:latest"):
         self.model_name = model_name
         self.client = create_ollama_client()
 
