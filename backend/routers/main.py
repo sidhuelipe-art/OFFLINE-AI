@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
@@ -19,6 +20,21 @@ with engine.begin() as connection:
     connection.execute(text("DROP TABLE IF EXISTS memory"))
 
 app = FastAPI(title="OFF AI Assistant API")
+
+
+# Home and health-check routes
+@app.get("/")
+def home():
+    return {
+        "status": "ok",
+        "message": "OFFLINE-AI backend is running"
+    }
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
 
 app.add_middleware(
     CORSMiddleware,
